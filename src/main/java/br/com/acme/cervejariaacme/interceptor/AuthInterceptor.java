@@ -13,7 +13,7 @@ public class AuthInterceptor implements HandlerInterceptor {
     public boolean preHandle(
             HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         Usuario usuarioLogado = (Usuario) request.getSession().getAttribute("usuarioLogado");
-        if(usuarioLogado != null){
+        if(usuarioLogado != null ){
             System.out.println("Estou logado");
         }else{
             System.out.println("Nao estou logado");

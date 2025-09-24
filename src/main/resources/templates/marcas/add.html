@@ -54,7 +54,7 @@
 
                 <div class="row">
                     <div class="col-3">
-                        <div class="input-group input-group-outline mb-3" th:classappend="${#fields.hasErrors('nome') ? 'is-invalid is-filled' : 'is-filled'}">
+                        <div  class="input-group input-group-outline mb-3" th:classappend="${#fields.hasErrors('nome') ? 'is-invalid is-filled' : 'is-filled'}">
                             <label for="nomeMarca" class="form-label " id="nome">Nome</label>
                             <input type="text" id="nomeMarca" th:required="required" th:field="*{nome}" class="form-control">
                         </div>

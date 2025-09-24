@@ -41,6 +41,5 @@ public class LupuloServiceTests {
         lupulos = lupuloService.findAllByName("Aht");
         assertEquals(1, lupulos.size());
         lupulos.forEach(System.out::println);
-
     }
 }
