@@ -7,9 +7,14 @@ import br.com.acme.cervejariaacme.model.Marca;
 import br.com.acme.cervejariaacme.model.Usuario;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.Arguments;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
@@ -24,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(MockitoExtension.class)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RelatorioCervejasRuimTest {
 
     @InjectMocks
@@ -32,6 +39,16 @@ class RelatorioCervejasRuimTest {
     @BeforeEach
     void resetEstadoCompartilhado() {
         relatorio.resetar();
+    }
+
+    @ParameterizedTest(name = "mediaCurtidas - cenário {index}")
+    @MethodSource("mediaCurtidasProvider")
+    void mediaCurtidasPorCerveja_casosBorda(List<Cerveja> base, double esperado) {
+        List<Cerveja> entrada = base == null ? null : new ArrayList<>(base);
+
+        double media = relatorio.mediaCurtidasPorCerveja(entrada);
+
+        assertEquals(esperado, media);
     }
 
     @Test
@@ -61,6 +78,30 @@ class RelatorioCervejasRuimTest {
         double media = relatorio.mediaCurtidasPorCerveja(List.of());
 
         assertEquals(0.0, media);
+    }
+
+    @ParameterizedTest(name = "Porcentagem com lupulo - total={0}, com={1}")
+    @CsvSource({
+            "0,0,0",
+            "1,1,100",
+            "2,1,50",
+            "4,3,75"
+    })
+    void porcentagemComLupulo_trataLimites(int totalCervejas, int comLupulo, double esperado) {
+        List<Cerveja> cervejas = new ArrayList<>();
+        Lupulo alvo = Lupulo.builder().nome("Citra").build();
+        Lupulo outro = Lupulo.builder().nome("Mosaic").build();
+
+        for (int i = 0; i < comLupulo; i++) {
+            cervejas.add(cervejaComLupulos("Com-" + i, alvo));
+        }
+        for (int i = comLupulo; i < totalCervejas; i++) {
+            cervejas.add(cervejaComLupulos("Sem-" + i, outro));
+        }
+
+        double porcentagem = relatorio.porcentagemComLupulo(cervejas, "citra");
+
+        assertEquals(esperado, porcentagem);
     }
 
     @Test
@@ -143,6 +184,29 @@ class RelatorioCervejasRuimTest {
         assertIterableEquals(List.of("IPA", "Stout"), top);
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "0,0",
+            "1,1",
+            "2,2",
+            "3,3",
+            "5,3"
+    })
+    void top3CervejasPorCurtidas_respeitaLimiteParametrizado(int quantidade, int esperado) {
+        List<Cerveja> cervejas = IntStream.range(0, quantidade)
+                .mapToObj(i -> cerveja("Beer-" + i, curtidas(quantidade - i)))
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        List<String> resultado = relatorio.top3CervejasPorCurtidas(cervejas);
+
+        List<String> esperadoNomes = IntStream.range(0, Math.min(quantidade, 3))
+                .mapToObj(i -> "Beer-" + i)
+                .toList();
+
+        assertEquals(esperado, resultado.size());
+        assertIterableEquals(esperadoNomes, resultado);
+    }
+
     @Test
     void contarPorMarca_utilizaNomeDaMarcaComoChave() {
         Marca acme = Marca.builder().nome("ACME").pais("BR").build();
@@ -212,5 +276,17 @@ class RelatorioCervejasRuimTest {
 
     private Set<Usuario> curtidas(Set<Usuario> usuarios) {
         return usuarios;
+    }
+
+    Stream<Arguments> mediaCurtidasProvider() {
+        return Stream.of(
+                Arguments.of(null, 0.0),
+                Arguments.of(List.<Cerveja>of(), 0.0),
+                Arguments.of(List.of(cerveja("Solo", curtidas(0))), 0.0),
+                Arguments.of(List.of(
+                        cerveja("UM", curtidas(2)),
+                        cerveja("DOIS", curtidas(4))
+                ), 3.0)
+        );
     }
 }
