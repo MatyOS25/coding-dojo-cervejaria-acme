@@ -7,6 +7,7 @@ import br.com.acme.cervejariaacme.model.Marca;
 import br.com.acme.cervejariaacme.model.Usuario;
 import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
+import net.jqwik.api.Combinators;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.Provide;
@@ -65,10 +66,14 @@ class RelatorioCervejasRuimPropertyTest {
 
         List<String> resultado = relatorio.top3CervejasPorCurtidas(entrada);
 
+        Comparator<Cerveja> ordenacao = Comparator
+                .comparingInt((Cerveja c) -> c.getCurtidas() == null ? 0 : c.getCurtidas().size()).reversed()
+                .thenComparing(c -> safeNome(c.getNome()), String.CASE_INSENSITIVE_ORDER);
+
         List<String> esperado = entrada.stream()
-                .sorted(curtidasComparator().reversed())
+                .sorted(ordenacao)
                 .limit(3)
-                .map(Cerveja::getNome)
+                .map(c -> safeNome(c.getNome()))
                 .toList();
 
         assertEquals(esperado, resultado);
@@ -94,8 +99,7 @@ class RelatorioCervejasRuimPropertyTest {
 
     @Provide
     Arbitrary<List<Cerveja>> listaCervejas() {
-        return Arbitraries.collections()
-                .list(cervejaArbitrary())
+        return cervejaArbitrary().list()
                 .ofMinSize(0)
                 .ofMaxSize(8);
     }
@@ -115,15 +119,14 @@ class RelatorioCervejasRuimPropertyTest {
                 .alpha()
                 .ofMinLength(1)
                 .ofMaxLength(12);
-        Arbitrary<String> marcas = Arbitraries.of("Acme", "Brau", "Citrus", "Delta", "Épica");
+        Arbitrary<String> marcas = Arbitraries.of("Acme", "Brau", "Citrus", "Delta", "Epica");
         Arbitrary<String> estilos = Arbitraries.of("IPA", "Pilsner", "Stout", "Lager", "Sour");
-        Arbitrary<List<Lupulo>> lupulos = Arbitraries.collections()
-                .list(lupuloArbitrary())
+        Arbitrary<List<Lupulo>> lupulos = lupuloArbitrary().list()
                 .ofMinSize(0)
                 .ofMaxSize(4);
         Arbitrary<Integer> curtidas = Arbitraries.integers().between(0, 5);
 
-        return Arbitraries.combine(nomes, marcas, estilos, lupulos, curtidas)
+        return Combinators.combine(nomes, marcas, estilos, lupulos, curtidas)
                 .as((nome, marca, estilo, listaLupulos, totalCurtidas) -> Cerveja.builder()
                         .nome(nome)
                         .marca(Marca.builder().nome(marca).pais("BR").build())
@@ -169,10 +172,8 @@ class RelatorioCervejasRuimPropertyTest {
                 .anyMatch(l -> l.getNome().equalsIgnoreCase(alvo));
     }
 
-    private Comparator<Cerveja> curtidasComparator() {
-        return Comparator
-                .comparingInt((Cerveja c) -> c.getCurtidas() == null ? 0 : c.getCurtidas().size())
-                .thenComparing(c -> c.getNome() == null ? "" : c.getNome(), String.CASE_INSENSITIVE_ORDER);
+    private String safeNome(String valor) {
+        return valor == null ? "" : valor;
     }
 
     private String safeNomeMarca(Marca marca) {
